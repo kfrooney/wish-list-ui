@@ -1,12 +1,12 @@
-import { v4 as uuid } from 'uuid';
-import { useNavigate } from 'react-router';
-import './App.css';
 import { getAuth, User } from "firebase/auth";
-import { addDoc, collection, CollectionReference, doc, DocumentData, DocumentSnapshot, getFirestore, onSnapshot, QuerySnapshot, setDoc } from "firebase/firestore";
-import { useEffect, useState } from 'react';
-import ListItem, { ListItemPO } from './ListItem';
-import List from './List';
+import { collection, CollectionReference, deleteDoc, doc, DocumentData, DocumentSnapshot, getFirestore, onSnapshot, QuerySnapshot, setDoc, updateDoc } from "firebase/firestore";
+import { MouseEvent, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router';
+import { v4 as uuid } from 'uuid';
+import './App.css';
+import List, { ListItemChangeEvent, ListItemMouseEvent } from './List';
 import { ListItemConverter } from './ListConverter';
+import { ListItemPO } from './ListItem';
 
 export type AppProps = { user?: User | null }
 
@@ -37,24 +37,6 @@ function App(props: AppProps) {
     }
   }, [props.user, db]);
 
-
-
-  // const [ownedList, setOwnedList] = useState<DocumentData | undefined>();
-  // useEffect(() => {
-  //   async function unwrapSnapshot() {
-  //     if (props.user?.uid && ownedListRef && ownedListSnapshot) {
-  //       if (ownedListSnapshot && ownedListSnapshot.exists()) {
-  //         setOwnedList(ownedListSnapshot.data());
-  //       } else {
-  //         const list = { displayName: props.user.displayName };
-  //         setOwnedList(list);
-  //         setDoc(ownedListRef, list);
-  //       }
-  //     }
-  //   }
-  //   unwrapSnapshot();
-  // }, [props.user, ownedListRef, ownedListSnapshot]);
-
   const [listItemsRef, setListItemsRef] = useState<CollectionReference<ListItemPO> | undefined>();
   const [listItemsSnapshot, setListItemsSnapshot] = useState<QuerySnapshot<ListItemPO> | undefined>();
   useEffect(() => {
@@ -75,13 +57,43 @@ function App(props: AppProps) {
     }
   }
 
+  function updateListItemTitle(event: ListItemChangeEvent) {
+    if (event.target instanceof HTMLInputElement) {
+      const inputBox = event.target as HTMLInputElement;
+      const item = event.listItem;
+      if (listItemsRef) {
+        const listItemRef = doc<ListItemPO>(listItemsRef, item.uuid);
+        updateDoc(listItemRef, { ...event.listItem, title: inputBox.value })
+      }
+    }
+  }
+
+  function updateListItemDescription(event: ListItemChangeEvent) {
+    if (event.target instanceof HTMLTextAreaElement) {
+      const textArea = event.target as HTMLTextAreaElement;
+      const item = event.listItem;
+      if (listItemsRef) {
+        const listItemRef = doc<ListItemPO>(listItemsRef, item.uuid);
+        updateDoc(listItemRef, { ...event.listItem, description: textArea.value })
+      }
+    }
+  }
+
+  function deleteListItem(event: ListItemMouseEvent) {
+    const item = event.listItem;
+    if (listItemsRef) {
+      const listItemRef = doc<ListItemPO>(listItemsRef, item.uuid);
+      deleteDoc(listItemRef);
+    }
+  }
+
   return (
     <div className="App">
       <header className="App-header">
         WISH LIST UI for {props.user?.displayName || 'ANON'}
       </header>
       <main>
-        <List listItemsSnapshot={listItemsSnapshot}></List>
+        <List listItems={listItemsSnapshot?.docs.map(ds => ds.data())} onTitleChange={updateListItemTitle} onDescriptionChange={updateListItemDescription} onListItemDelete={deleteListItem}></List>
         <button onClick={addListItem}>+</button>
       </main>
       <footer>

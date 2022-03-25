@@ -1,33 +1,33 @@
-import { QueryDocumentSnapshot, QuerySnapshot, updateDoc } from "firebase/firestore";
-import { ChangeEvent } from "react";
+import { ChangeEvent, MouseEvent } from "react";
 import ListItem, { ListItemPO } from "./ListItem";
 
-export type ListProps = { listItemsSnapshot?: QuerySnapshot<ListItemPO> }
+export type ListItemChangeEvent = ChangeEvent & { listItem: ListItemPO };
+export type ListItemMouseEvent = MouseEvent<HTMLButtonElement, globalThis.MouseEvent> & { listItem: ListItemPO }
+export type ListItemChangeEventHandler = (event: ListItemChangeEvent) => void;
+export type ListItemMouseEventHandler = (event: ListItemMouseEvent) => void;
+export type ListProps = { listItems?: ListItemPO[]; onTitleChange?: ListItemChangeEventHandler; onDescriptionChange?: ListItemChangeEventHandler; onListItemDelete?: ListItemMouseEventHandler }
 
-function updateListItemTitle(snap: QueryDocumentSnapshot<ListItemPO>) {
+function updateListItem(item: ListItemPO, handler?: ListItemChangeEventHandler) {
     return (event: ChangeEvent) => {
-        if (event.target instanceof HTMLInputElement) {
-            const inputBox = event.target as HTMLInputElement;
-            updateDoc(snap.ref, { ...snap.data(), title: inputBox.value })
+        if ((event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) && handler !== undefined) {
+            handler({ ...event, listItem: item });
         }
     };
 }
 
-function updateListItemDescription(snap: QueryDocumentSnapshot<ListItemPO>) {
-    return (event: ChangeEvent) => {
-        if (event.target instanceof HTMLTextAreaElement) {
-            const textArea = event.target as HTMLTextAreaElement;
-            updateDoc(snap.ref, { ...snap.data(), description: textArea.value });
+function deleteListItem(item: ListItemPO, handler?: ListItemMouseEventHandler) {
+    return (event: MouseEvent<HTMLButtonElement, globalThis.MouseEvent>) => {
+        if (handler !== undefined) {
+            handler({ ...event, listItem: item });
         }
     };
 }
 
-// Initialize Firebase
 function List(props: ListProps) {
     return <ol> {
-        !!props.listItemsSnapshot
-            ? props.listItemsSnapshot.docs.map(snap =>
-                <ListItem listItem={snap.data()} onTitleChange={updateListItemTitle(snap)} onDescriptionChange={updateListItemDescription(snap)}></ListItem>
+        !!props.listItems
+            ? props.listItems.map(item =>
+                <ListItem listItem={item} onTitleChange={updateListItem(item, props.onTitleChange)} onDescriptionChange={updateListItem(item, props.onDescriptionChange)} onDelete={deleteListItem(item, props.onListItemDelete)}></ListItem>
             )
             : <div>No list items yet!</div>
     } </ol>
