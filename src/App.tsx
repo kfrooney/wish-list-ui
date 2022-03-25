@@ -2,9 +2,11 @@ import { v4 as uuid } from 'uuid';
 import { useNavigate } from 'react-router';
 import './App.css';
 import { getAuth, User } from "firebase/auth";
-import { addDoc, collection, CollectionReference, doc, DocumentData, DocumentSnapshot, getFirestore, onSnapshot, QuerySnapshot } from "firebase/firestore";
+import { addDoc, collection, CollectionReference, doc, DocumentData, DocumentSnapshot, getFirestore, onSnapshot, QuerySnapshot, setDoc } from "firebase/firestore";
 import { useEffect, useState } from 'react';
-import ListItem from './ListItem';
+import ListItem, { ListItemPO } from './ListItem';
+import List from './List';
+import { ListItemConverter } from './ListConverter';
 
 export type AppProps = { user?: User | null }
 
@@ -53,40 +55,33 @@ function App(props: AppProps) {
   //   unwrapSnapshot();
   // }, [props.user, ownedListRef, ownedListSnapshot]);
 
-  const [listItemsRef, setListItemsRef] = useState<CollectionReference<DocumentData> | undefined>();
-  const [listItemsSnapshot, setListItemsSnapshot] = useState<QuerySnapshot<DocumentData> | undefined>();
+  const [listItemsRef, setListItemsRef] = useState<CollectionReference<ListItemPO> | undefined>();
+  const [listItemsSnapshot, setListItemsSnapshot] = useState<QuerySnapshot<ListItemPO> | undefined>();
   useEffect(() => {
-    console.log(`setting listItemsSnapshot here is the ownedListSnapshot`, ownedListSnapshot);
     if (props.user && ownedListSnapshot && ownedListSnapshot.exists()) {
-      console.log(`setting listItemsSnapshot, user and ownedListSnapshot exists!`);
-      const lir = collection(db, `ownedLists`, props.user.uid, `items`)
+      const lir = collection(db, `ownedLists`, props.user.uid, `items`).withConverter(new ListItemConverter());
       setListItemsRef(lir);
-      return onSnapshot(lir, (listItems: QuerySnapshot<DocumentData>) => {
+      return onSnapshot(lir, (listItems) => {
         setListItemsSnapshot(listItems);
       });
     }
   }, [props.user, ownedListSnapshot, db]);
 
   function addListItem() {
-    // async function addDocAndUpdateListItemsSnapshot() {
-      if (listItemsRef) {
-        addDoc(listItemsRef, { uuid: uuid(), title: '', description: '' });
-      }
-
-    // }
-    // addDocAndUpdateListItemsSnapshot();
+    if (listItemsRef && props.user) {
+      const newId = uuid();
+      const listItemRef = doc<ListItemPO>(listItemsRef, newId);
+      setDoc(listItemRef, { uuid: newId, title: '', description: '' });
+    }
   }
-  console.log(`listItemsSnapshot is ${listItemsSnapshot}`);
-  listItemsSnapshot?.docs.map(snap => console.log(`here's a snapshot ${snap.data()}`));
+
   return (
     <div className="App">
       <header className="App-header">
         WISH LIST UI for {props.user?.displayName || 'ANON'}
       </header>
       <main>
-        <ol>
-          {listItemsSnapshot?.docs.map(snap => <ListItem documentSnapshot={snap}></ListItem>)}
-        </ol>
+        <List listItemsSnapshot={listItemsSnapshot}></List>
         <button onClick={addListItem}>+</button>
       </main>
       <footer>
