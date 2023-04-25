@@ -1,14 +1,14 @@
-import { getAuth, User } from "firebase/auth";
-import { collection, CollectionReference, deleteDoc, doc, DocumentData, DocumentSnapshot, getFirestore, onSnapshot, QuerySnapshot, setDoc, updateDoc } from "firebase/firestore";
-import { MouseEvent, useEffect, useState } from 'react';
+import { getAuth } from "firebase/auth";
+import { collection, CollectionReference, deleteDoc, doc, DocumentData, DocumentReference, DocumentSnapshot, getFirestore, onSnapshot, QuerySnapshot, setDoc, updateDoc } from "firebase/firestore";
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { v4 as uuid } from 'uuid';
 import './App.css';
-import List, { ListItemChangeEvent, ListItemMouseEvent } from './List';
+import List from './List';
 import { ListItemConverter } from './ListConverter';
-import { ListItemPO } from './ListItem';
+import ListItem, { ListItemChangeEvent, ListItemMouseEvent, ListItemPO } from './ListItem';
+import { useFirebaseAuth } from "./FirebaseUserContext";
 
-export type AppProps = { user?: User | null }
 
 function signOut(navigate: Function) {
   navigate(`/login`);
@@ -16,41 +16,40 @@ function signOut(navigate: Function) {
 }
 
 // Initialize Firebase
-function App(props: AppProps) {
+function App() {
+  const db = getFirestore();
   const navigate = useNavigate();
+  const user = useFirebaseAuth();
   useEffect(() => {
-    if (!props.user) {
+    if (!user) {
       navigate(`/login`);
     }
-  }, [props.user, navigate]);
+  });
 
-  const db = getFirestore();
-
-  const [ownedListSnapshot, setOwnedListSnapshot] = useState<DocumentSnapshot<DocumentData> | undefined>();
-  useEffect(() => {
-    if (props.user?.uid) {
-      return onSnapshot(doc(db, `ownedLists`, props.user.uid), (ownedLists: DocumentSnapshot<DocumentData>) => {
-        console.log(`setting ownedListSnapshot`, ownedListSnapshot);
-        setOwnedListSnapshot(ownedLists);
-        console.log(`finished setting ownedListSnapshot`, ownedListSnapshot);
+  const [ownedList, setOwnedList] = useState<DocumentSnapshot<DocumentData> | undefined>();
+  useEffect(()=>{
+    if (user?.uid) {
+      const ownedListRef: DocumentReference<DocumentData> = doc(db, `ownedLists`, user.uid);
+      return onSnapshot(ownedListRef, (ownedLists: DocumentSnapshot<DocumentData>) => {
+        setOwnedList(ownedLists);
       });
     }
-  }, [props.user, db]);
+  },[user?.uid, db])
 
   const [listItemsRef, setListItemsRef] = useState<CollectionReference<ListItemPO> | undefined>();
   const [listItemsSnapshot, setListItemsSnapshot] = useState<QuerySnapshot<ListItemPO> | undefined>();
   useEffect(() => {
-    if (props.user && ownedListSnapshot && ownedListSnapshot.exists()) {
-      const lir = collection(db, `ownedLists`, props.user.uid, `items`).withConverter(new ListItemConverter());
+    if (user && ownedList && ownedList.exists()) {
+      const lir = collection(db, `ownedLists`, user.uid, `items`).withConverter(new ListItemConverter());
       setListItemsRef(lir);
       return onSnapshot(lir, (listItems) => {
         setListItemsSnapshot(listItems);
       });
     }
-  }, [props.user, ownedListSnapshot, db]);
+  }, [user, ownedList, db]);
 
   function addListItem() {
-    if (listItemsRef && props.user) {
+    if (listItemsRef && user) {
       const newId = uuid();
       const listItemRef = doc<ListItemPO>(listItemsRef, newId);
       setDoc(listItemRef, { uuid: newId, title: '', description: '' });
@@ -90,10 +89,20 @@ function App(props: AppProps) {
   return (
     <div className="App">
       <header className="App-header">
-        WISH LIST UI for {props.user?.displayName || 'ANON'}
+        WISH LIST UI for {user?.displayName || 'ANON'}
       </header>
       <main>
-        <List listItems={listItemsSnapshot?.docs.map(ds => ds.data())} onTitleChange={updateListItemTitle} onDescriptionChange={updateListItemDescription} onListItemDelete={deleteListItem}></List>
+        <List>
+          {
+            listItemsSnapshot?.docs.map(ds => ds.data()).map(li => 
+              <ListItem key={li.uuid}
+                        listItem={li} 
+                        onTitleChange={updateListItemTitle} 
+                        onDescriptionChange={updateListItemDescription} 
+                        onDelete={deleteListItem} />
+            )
+          }
+        </List>
         <button onClick={addListItem}>+</button>
       </main>
       <footer>

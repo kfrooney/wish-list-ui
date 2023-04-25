@@ -3,10 +3,13 @@ import ReactDOM from 'react-dom';
 import './index.css';
 import WishListRoutes from './WishListRoutes';
 import reportWebVitals from './reportWebVitals';
+import { FirebaseAuthProvider } from './FirebaseUserContext';
 
 ReactDOM.render(
   <React.StrictMode>
-    <WishListRoutes></WishListRoutes>
+    <FirebaseAuthProvider>
+      <WishListRoutes></WishListRoutes>
+    </FirebaseAuthProvider>
   </React.StrictMode>,
   document.getElementById('root')
 );

@@ -1,16 +1,18 @@
 import { GoogleAuthProvider, User, getAuth, signInWithRedirect } from 'firebase/auth';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router';
+import { useFirebaseAuth } from './FirebaseUserContext';
 export type LoginProps = { user?: User | null }
 function signIn() {
     signInWithRedirect(getAuth(), new GoogleAuthProvider());
 }
 
-function Login(props: LoginProps) {
+function Login() {
+    const user = useFirebaseAuth();
     const navigate = useNavigate();
 
     useEffect(() => {
-        if (props.user) {
+        if (user) {
             navigate(`/app`);
         }
     });
