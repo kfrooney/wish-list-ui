@@ -6,8 +6,10 @@ import { v4 as uuid } from 'uuid';
 import './App.css';
 import List from './List';
 import { ListItemConverter } from './ListConverter';
-import ListItem, { ListItemChangeEvent, ListItemMouseEvent, ListItemPO } from './ListItem';
+import ListItem, { ListItemChangeEvent, ListItemDragStartEvent, ListItemMouseEvent, ListItemPO } from './ListItem';
 import { useFirebaseAuth } from "./FirebaseUserContext";
+import { UserConverter } from "./UserConverter";
+import { UserPO } from "./User";
 
 
 function signOut(navigate: Function) {
@@ -19,37 +21,47 @@ function signOut(navigate: Function) {
 function App() {
   const db = getFirestore();
   const navigate = useNavigate();
-  const user = useFirebaseAuth();
+  const firebaseUser = useFirebaseAuth();
   useEffect(() => {
-    if (!user) {
+    if (!firebaseUser) {
       navigate(`/login`);
     }
   });
 
-  const [ownedList, setOwnedList] = useState<DocumentSnapshot<DocumentData> | undefined>();
+  const [user, setUser] = useState<UserPO | undefined>()
   useEffect(()=>{
-    if (user?.uid) {
-      const ownedListRef: DocumentReference<DocumentData> = doc(db, `ownedLists`, user.uid);
-      return onSnapshot(ownedListRef, (ownedLists: DocumentSnapshot<DocumentData>) => {
-        setOwnedList(ownedLists);
+    if (firebaseUser?.uid) {
+      const userRef: DocumentReference<UserPO> = doc(db, `users`, firebaseUser.uid).withConverter(new UserConverter());
+      return onSnapshot(userRef, (user: DocumentSnapshot<UserPO>) => {
+        setUser(user.data());
       });
     }
-  },[user?.uid, db])
+  },[firebaseUser?.uid, db])
+
+  const [ownedLists, setOwnedLists] = useState<QuerySnapshot<DocumentData> | undefined>();
+  useEffect(()=>{
+    if (user?.uuid) {
+      const ownedListRef: CollectionReference<DocumentData> = collection(db, `users`, user.uuid, `ownedLists`);
+      return onSnapshot(ownedListRef, (ownedLists: QuerySnapshot<DocumentData>) => {
+        setOwnedLists(ownedLists);
+      });
+    }
+  },[user, db])
 
   const [listItemsRef, setListItemsRef] = useState<CollectionReference<ListItemPO> | undefined>();
   const [listItemsSnapshot, setListItemsSnapshot] = useState<QuerySnapshot<ListItemPO> | undefined>();
   useEffect(() => {
-    if (user && ownedList && ownedList.exists()) {
-      const lir = collection(db, `ownedLists`, user.uid, `items`).withConverter(new ListItemConverter());
+    if (firebaseUser && ownedList && ownedList.exists()) {
+      const lir = collection(db, `ownedLists`, firebaseUser.uid, `items`).withConverter(new ListItemConverter());
       setListItemsRef(lir);
       return onSnapshot(lir, (listItems) => {
         setListItemsSnapshot(listItems);
       });
     }
-  }, [user, ownedList, db]);
+  }, [firebaseUser, ownedList, db]);
 
   function addListItem() {
-    if (listItemsRef && user) {
+    if (listItemsRef && firebaseUser) {
       const newId = uuid();
       const listItemRef = doc<ListItemPO>(listItemsRef, newId);
       setDoc(listItemRef, { uuid: newId, title: '', description: '' });
@@ -86,21 +98,29 @@ function App() {
     }
   }
 
+  function startDraggingListItem(event: ListItemDragStartEvent) {
+    console.log(`What a drag!`, event.listItem)
+  }
+
   return (
     <div className="App">
       <header className="App-header">
-        WISH LIST UI for {user?.displayName || 'ANON'}
+        WISH LIST UI for {firebaseUser?.displayName || 'ANON'}
       </header>
       <main>
         <List>
           {
-            listItemsSnapshot?.docs.map(ds => ds.data()).map(li => 
-              <ListItem key={li.uuid}
-                        listItem={li} 
-                        onTitleChange={updateListItemTitle} 
-                        onDescriptionChange={updateListItemDescription} 
-                        onDelete={deleteListItem} />
-            )
+            listItemsSnapshot?.docs
+              .map(ds => ds.data())
+              .sort((a, b) => 0)
+              .map(li => 
+                <ListItem key={li.uuid}
+                          listItem={li} 
+                          onTitleChange={updateListItemTitle} 
+                          onDescriptionChange={updateListItemDescription} 
+                          onDelete={deleteListItem}
+                          onDragStart={startDraggingListItem} />
+              )
           }
         </List>
         <button onClick={addListItem}>+</button>

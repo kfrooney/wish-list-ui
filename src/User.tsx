@@ -1,0 +1,1 @@
+export type UserPO = { uuid: string, displayName: string }
