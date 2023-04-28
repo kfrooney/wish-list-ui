@@ -1,6 +1,34 @@
-# Getting Started with Create React App
+# Wish List UI
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+This is a project early in development for creating and buying from wish lists. My family during birthdays and Christmas always exchanges Google docs containing what gifts they'd like to receive.
+
+The problem is, it's difficult to coordinate among a large group of people who is buying what. Doing so in the doc would spoil the surprise whenever the doc's author goes in to edit it. Doing it offline via text is hard to track.
+
+Thus, I try to create a web interface that will (eventually) make this problem go away.
+
+## Current state
+It's really just a simple list in a GCP firestore. You login with Google, and can add and delete list items with a title and description. You can also delete them.
+
+## Still to come
+Some features I hope to develop soon:
+### List authoring
+  * Re-order items in the list via drag & drop
+  * Allow multiple lists per user
+  * Allow list items to appear in multiple lists
+  * Dedicated link fields for products
+  * Sections, sub-lists
+  * Filter & sort by price
+
+### List sharing
+  * Share lists with other users
+  * Select lists shared with you for viewing
+  * Allow for anonymous (for polyanna/secret santa) & non-anonymous coordination
+  * Allow gift-givers to solicit for "chipping in" on more expensive items
+  * Virtually pick names out of a hat for Polyanna/Secret Santa, and assign the proper list to you 
+
+---
+
+Below is some create-react-app boilerplate that's still useful
 
 ## Available Scripts
 
